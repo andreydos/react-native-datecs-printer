@@ -286,7 +286,7 @@ public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements
      */
 	@ReactMethod
 	public void printText(String text, Promise promise) {
-		String charset = "ISO-8859-1";
+		String charset = "KOI8-U";
 		try {
 			mPrinter.printTaggedText(text, charset);
 			mPrinter.flush();

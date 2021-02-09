@@ -27,6 +27,10 @@ import com.datecs.api.printer.PrinterInformation;
 import com.datecs.api.printer.Printer;
 import com.datecs.api.printer.ProtocolAdapter;
 
+import android.util.Base64;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+
 public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements LifecycleEventListener{
 
 	// Debugging
@@ -174,13 +178,13 @@ public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements
 			try{
 				initializePrinter(mmInputStream, mmOutputStream, promise);
 			}catch(Exception e){
-				promise.reject("Erro: " + e.getMessage());
+				promise.reject("Error: " + e.getMessage());
 				return;
 			}
 
 			// promise.resolve("BLUETOOTH CONNECTED");
 		}catch(Exception e){
-			promise.reject("Erro: " + e.getMessage());
+			promise.reject("Error: " + e.getMessage());
 		}
 	}
 
@@ -193,7 +197,7 @@ public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements
 		mProtocolAdapter = new ProtocolAdapter(inputStream, outputStream);
 		if (mProtocolAdapter.isProtocolEnabled()) {
 			final ProtocolAdapter.Channel channel = mProtocolAdapter.getChannel(ProtocolAdapter.CHANNEL_PRINTER);
-			
+
 			// it was causing errors, need to be reviewed
             // channel.setListener(mChannelListener);
 
@@ -235,7 +239,7 @@ public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements
 			int status = mPrinter.getStatus();
 			promise.resolve(status);
 		} catch (Exception e) {
-			promise.reject("Erro: " + e.getMessage());
+			promise.reject("Error: " + e.getMessage());
 		}
 	}
 
@@ -257,7 +261,7 @@ public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements
 
 			promise.resolve("PAPER_FED");
 		} catch (Exception e) {
-			promise.reject("Erro: " + e.getMessage());
+			promise.reject("Error: " + e.getMessage());
 		}
 	}
 
@@ -274,7 +278,27 @@ public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements
 
 			promise.resolve("SELF_TEST_PRINTED");
 		} catch (Exception e) {
-			promise.reject("Erro: " + e.getMessage());
+			promise.reject("Error: " + e.getMessage());
+		}
+	}
+
+	/**
+     * Print QR code
+     *
+     * @param size - size (allowed values 1, 4, 6, 8, 10, 12, 14)
+     * @param eccLv - error level (allowed values 1 (L 7%), 2 (M 15%), 3 (Q 25%), 4 (H 30%)
+     * @param text
+     * @param promise
+     */
+	@ReactMethod
+	public void printQRCode(int size, int eccLv, String text, Promise promise) {
+		try {
+			mPrinter.printQRCode(size, eccLv, text);
+			mPrinter.flush();
+
+			promise.resolve("PRINTED");
+		} catch (Exception e) {
+			promise.reject("Error: " + e.getMessage());
 		}
 	}
 
@@ -284,18 +308,48 @@ public class RNDatecsPrinterModule extends ReactContextBaseJavaModule implements
      * @param text
      * @param promise
      */
-	@ReactMethod
-	public void printText(String text, Promise promise) {
-		String charset = "cp1251";
-		try {
-			mPrinter.printTaggedText(text, charset);
-			mPrinter.flush();
+    @ReactMethod
+    public void printText(String text, Promise promise) {
+        String charset = "utf-8";
+        try {
+            mPrinter.printTaggedText(text, charset);
+            mPrinter.flush();
 
-			promise.resolve("PRINTED");
-		} catch (Exception e) {
-			promise.reject("Erro: " + e.getMessage());
-		}
-	}
+            promise.resolve("PRINTED");
+        } catch (Exception e) {
+            promise.reject("Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Print image
+     *
+     * @param base64
+     * @param alignment - CENTER = 1  LEFT = 0 RIGHT = 2
+     * @param promise
+     */
+    @ReactMethod
+    public void printImage(String base64, int alignment,  Promise promise) {
+        try {
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inScaled = false;
+            byte[] decodedByte = Base64.decode(base64, 0);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedByte, 0, decodedByte.length);
+            final int imgWidth = bitmap.getWidth();
+            final int imgHeight = bitmap.getHeight();
+            final int[] argb = new int[imgWidth * imgHeight];
+
+            bitmap.getPixels(argb, 0, imgWidth, 0, 0, imgWidth, imgHeight);
+            bitmap.recycle();
+
+            mPrinter.printImage(argb, imgWidth, imgWidth, alignment, true);
+            mPrinter.flush();
+
+            promise.resolve("PRINTED");
+        } catch (Exception e) {
+            promise.reject("Error: " + e.getMessage());
+        }
+    }
 
 	/**
      * Disconnect printer
